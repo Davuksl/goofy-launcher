@@ -3,17 +3,6 @@
   <PropertyGroup>
     <_LastSelectedProfileId>C:\Users\atpied\Desktop\LuckyBlox Launcher 0.4\Properties\PublishProfiles\FolderProfile.pubxml</_LastSelectedProfileId>
   </PropertyGroup>
-  <ItemGroup>
-    <Compile Update="_2017Launcher\Form1.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Update="_2017Launcher\Form2.cs">
-      <SubType>Form</SubType>
-    </Compile>
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Update="_2017Launcher\Properties\Resource1.resx">
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
-  </ItemGroup>
+  <ItemGroup />
+  <ItemGroup />
 </Project>

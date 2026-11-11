@@ -1,4 +1,4 @@
-/*
+﻿/*
 
         ██╗░░░░░██╗░░░██╗░█████╗░██╗░░██╗██╗░░░██╗██████╗░██╗░░░░░░█████╗░██╗░░██╗
         ██║░░░░░██║░░░██║██╔══██╗██║░██╔╝╚██╗░██╔╝██╔══██╗██║░░░░░██╔══██╗╚██╗██╔╝
@@ -25,16 +25,12 @@ I know the code is currently bad written. Soon I’ll fix it properly so that it
 
 */
 
-using GameServer;
-using GameServer.Rcc;
-using GameServer.Rcc.Classes;
-using soapframework;
-using SoapUI.Rcc.Classes;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -246,6 +242,7 @@ public class Form1 : Form
             }
         };
         InitializeComponent();
+        AddLiveAppearanceButton();
         InitializeDiscordRpc();
         listBox5.SelectedItem = File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "Settings\\AdonisEnabled.txt");
         listBox7.SelectedItem = File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "Settings\\membership.txt");
@@ -361,20 +358,17 @@ public class Form1 : Form
 		if (!started2008)
 		{
 			string script = File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "/shared/2008host.txt");
-			string ip2 = "localhost";
-			string url = "localhost/";
-			_ = this.http;
 			started2008 = true;
-			ParseXML(SOAP2.OpenJob(int.Parse("64989"), new Job("Test", double.Parse("600000"), 0, double.Parse("0")), new Script("GameServer", script, GetLuaValues()), url, ip2), "OpenJob");
+			ParseXML(RccSoapClient.OpenJob("localhost", 64989, "Test", 600000, 0, 0, "GameServer", script, GetLuaValues()), "OpenJob");
 		}
-		List<LuaValueNew> GetLuaValues()
+		List<RccLuaArgument> GetLuaValues()
 		{
-			List<LuaValueNew> list = new List<LuaValueNew>();
+			List<RccLuaArgument> list = new List<RccLuaArgument>();
 			foreach (Control control in scriptArgumentPanel.Controls)
 			{
 				if (control.Name == "argumentTemplate" && control.Visible)
 				{
-					list.Add(new LuaValueNew(control.Controls["argumentType"].Text, control.Controls["argumentValue"].Text));
+					list.Add(new RccLuaArgument(control.Controls["argumentType"].Text, control.Controls["argumentValue"].Text));
 				}
 			}
 			return list;
@@ -492,8 +486,10 @@ public class Form1 : Form
 
 	private static void ExecuteCommand(string command)
 	{
+		string runtimeDrive = EnsureAsciiRuntimeDrive();
 		Process.Start(new ProcessStartInfo("cmd.exe", "/c " + command)
 		{
+			WorkingDirectory = runtimeDrive + "\\",
 			CreateNoWindow = true,
 			UseShellExecute = false,
 			RedirectStandardError = true,
@@ -501,27 +497,47 @@ public class Form1 : Form
 		}).Close();
 	}
 
+	private static string EnsureAsciiRuntimeDrive()
+	{
+		const string drive = "L:";
+		if (!Directory.Exists(drive + "\\"))
+		{
+			string baseDirectory = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\');
+			Process subst = Process.Start(new ProcessStartInfo("subst.exe", drive + " \"" + baseDirectory + "\"")
+			{
+				CreateNoWindow = true,
+				UseShellExecute = false,
+				RedirectStandardError = true,
+				RedirectStandardOutput = true
+			});
+			subst.WaitForExit();
+			if (subst.ExitCode != 0 || !Directory.Exists(drive + "\\"))
+				throw new InvalidOperationException("Could not create an ASCII runtime path for the legacy Roblox client.");
+		}
+		return drive;
+	}
+
     private void playaudio() // normal click sound
     {
-		SoundPlayer audio = new SoundPlayer(_2017Launcher.Properties.Resource1._switch); ; // click sound, feel free to disable.
+		SoundPlayer audio = new SoundPlayer("switch.wav"); ; // click sound, feel free to disable.
         audio.Play();
     }
 
     private void playaudio1() // clear appearence sound
     {
-        SoundPlayer audio = new SoundPlayer(_2017Launcher.Properties.Resource1.ClearAppear); ; // click sound, feel free to disable.
+        SoundPlayer audio = new SoundPlayer("ClearAppear.wav"); ; // click sound, feel free to disable.
         audio.Play();
     }
 
     private void playaudio2() // clear appearence sound
     {
-        SoundPlayer audio = new SoundPlayer(_2017Launcher.Properties.Resource1.Switch2); ; // click sound, feel free to disable.
+        SoundPlayer audio = new SoundPlayer("Switch2.wav"); ; // click sound, feel free to disable.
         audio.Play();
     }
 
     private void playaudio3() // clear appearence sound
     {
-        SoundPlayer audio = new SoundPlayer(_2017Launcher.Properties.Resource1.tabsound); ; // click sound, feel free to disable.
+        SoundPlayer audio = new SoundPlayer("tabsound.wav"); ; // click sound, feel free to disable.
         audio.Play();
     }
 
@@ -627,22 +643,11 @@ public class Form1 : Form
 	{
 	}
 
-	private void jmmwantsitstablebutjson(string ip, string port, string baseurl, string text, string req)
-	{
-		try
-		{
-			SOAP.jsonExecute(baseurl, ip + ":" + port, text, req);
-		}
-		catch
-		{
-		}
-	}
-
 	private void jmmwantsitstable(string ip, string port, string baseurl, string req, string scr)
 	{
 		try
 		{
-			SOAP.ExecuteScript(ip + ":" + port, "RanScript", scr, "Test", "", baseurl, req);
+			RccSoapClient.Execute(ip, int.Parse(port), "Test", "RanScript", scr);
 		}
 		catch
 		{
@@ -661,10 +666,14 @@ public class Form1 : Form
 	private void button1_Click(object sender, EventArgs e)
 	{
         playaudio();
-        string text = listBox1.SelectedItem.ToString();
+        string text = listBox1.SelectedItem == null ? "" : listBox1.SelectedItem.ToString();
 		if (text == "Empty")
 		{
 			return;
+		}
+		if (!string.IsNullOrWhiteSpace(text))
+		{
+			currentclient = text;
 		}
 		string text2 = "password=" + num;
 		string text3 = "_G.AdminPasswordPublic = '" + text2 + "'\r\n\r\n";
@@ -672,21 +681,21 @@ public class Form1 : Form
 		{
 			string text4 = File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "Settings\\ServerScript.txt");
 			string path = AppDomain.CurrentDomain.BaseDirectory.ToString() + "Clients\\" + text + "\\Player\\content\\scripts\\CoreScripts\\ServerStarterScript.lua";
-			text4 = text4.Replace("%bodytype%", chartype);
+			text4 = text4.Replace("%bodytype%", chartype) + GetNewClientBodyColorsScript();
 			File.WriteAllText(path, text3 + text4);
 		}
 		catch
 		{
 			string text5 = File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "Settings\\ServerScript.txt");
 			string path2 = AppDomain.CurrentDomain.BaseDirectory.ToString() + "shared\\content\\scripts\\CoreScripts\\ServerStarterScript.lua";
-			text5 = text5.Replace("%bodytype%", chartype);
+			text5 = text5.Replace("%bodytype%", chartype) + GetNewClientBodyColorsScript();
 			File.WriteAllText(path2, text3 + text5);
 		}
 		try
 		{
 			string text6 = File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "Settings\\2021Server.lua");
 			string path3 = AppDomain.CurrentDomain.BaseDirectory.ToString() + "shared\\ExtraContent\\scripts\\CoreScripts\\ServerStarterScript.lua";
-			text6 = text6.Replace("%bodytype%", chartype);
+			text6 = text6.Replace("%bodytype%", chartype) + GetNewClientBodyColorsScript();
 			File.WriteAllText(path3, text3 + text6);
 		}
 		catch
@@ -843,7 +852,7 @@ public class Form1 : Form
         if (currentclient == "2021M")
         {
             string text13 = File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "/Settings/gameserverraw.json");
-            text13 = text13.Replace("%port%", textBox4.Text);
+            text13 = NormalizeLocalGameServerJson(text13.Replace("%port%", textBox4.Text));
             using (StreamWriter streamWriter4 = new StreamWriter(new SaveFileDialog
             {
                 FileName = AppDomain.CurrentDomain.BaseDirectory + "shared\\gameserver.json"
@@ -857,7 +866,7 @@ public class Form1 : Form
         if (currentclient == "2021E")
 		{
 			string text13 = File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "/Settings/gameserverraw.json");
-			text13 = text13.Replace("%port%", textBox4.Text);
+			text13 = NormalizeLocalGameServerJson(text13.Replace("%port%", textBox4.Text));
 			using (StreamWriter streamWriter4 = new StreamWriter(new SaveFileDialog
 			{
 				FileName = AppDomain.CurrentDomain.BaseDirectory + "shared\\gameserver.json"
@@ -871,7 +880,7 @@ public class Form1 : Form
 		if (currentclient == "2020L")
 		{
 			string text14 = File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "/Settings/gameserverraw.json");
-			text14 = text14.Replace("%port%", textBox4.Text);
+			text14 = NormalizeLocalGameServerJson(text14.Replace("%port%", textBox4.Text));
 			using (StreamWriter streamWriter5 = new StreamWriter(new SaveFileDialog
 			{
 				FileName = AppDomain.CurrentDomain.BaseDirectory + "shared\\gameserver.json"
@@ -982,7 +991,7 @@ public class Form1 : Form
 		try
 		{
 			string text17 = File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "/Settings/gameserverraw.json");
-			text17 = text17.Replace("%port%", textBox4.Text);
+			text17 = NormalizeLocalGameServerJson(text17.Replace("%port%", textBox4.Text));
 			using (StreamWriter streamWriter8 = new StreamWriter(new SaveFileDialog
 			{
 				FileName = AppDomain.CurrentDomain.BaseDirectory + "shared/gameserver.json"
@@ -995,7 +1004,7 @@ public class Form1 : Form
 		catch
 		{
 			string text18 = File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "/Settings/gameserverraw.json");
-			text18 = text18.Replace("%port%", textBox4.Text);
+			text18 = NormalizeLocalGameServerJson(text18.Replace("%port%", textBox4.Text));
 			using (StreamWriter streamWriter9 = new StreamWriter(new SaveFileDialog
 			{
 				FileName = AppDomain.CurrentDomain.BaseDirectory + "shared/gameserver.json"
@@ -1005,6 +1014,15 @@ public class Form1 : Form
 			}
 			ExecuteCommand("start shared/" + currentclient + ".exe -Console -verbose -placeid:1818 -localtest " + text8 + "gameserver.json" + text8 + "  -port 64989");
 		}
+	}
+
+	private static string NormalizeLocalGameServerJson(string json)
+	{
+		json = Regex.Replace(json, @"(""MaxGameInstances""\s*:\s*)\d+", "${1}1");
+		json = json.Replace("http://localhost/.127.0.0.1/asset/?id=", "http://127.0.0.1/.127.0.0.1/asset/?id=");
+		json = json.Replace("http://localhost/asset/?id=", "http://127.0.0.1/asset/?id=");
+		json = json.Replace("\"BaseUrl\":\"localhost/.127.0.0.1\"", "\"BaseUrl\":\"127.0.0.1/.127.0.0.1\"");
+		return json;
 	}
 
 	private static string RemoveWhitespace(string input)
@@ -1017,6 +1035,10 @@ public class Form1 : Form
 	private void button2_Click(object sender, EventArgs e)
 	{
         playaudio();
+		if (listBox1.SelectedItem != null)
+		{
+			currentclient = listBox1.SelectedItem.ToString();
+		}
         using (StreamWriter streamWriter = new StreamWriter(new SaveFileDialog
 		{
 			FileName = AppDomain.CurrentDomain.BaseDirectory + "Settings/username.txt"
@@ -1178,6 +1200,10 @@ public class Form1 : Form
             textBox4.Text = text;
             text = RemoveWhitespace(File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "Settings/SelectedClient.txt"));
             listBox1.SetSelected(listBox1.FindString(text), value: true);
+            if (listBox1.SelectedIndex >= 0)
+            {
+                listBox1_SelectedIndexChanged(listBox1, EventArgs.Empty);
+            }
             text = File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "Settings/BodyColors/HeadColor.txt");
             headcolor = text;
             text = File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "Settings/BodyColors/TorsoColor.txt");
@@ -1488,11 +1514,62 @@ public class Form1 : Form
 	{
 		playaudio1();
 		label5.Text = "Cleared!";
-		using StreamWriter streamWriter = new StreamWriter(new SaveFileDialog
+		File.WriteAllText(AppDomain.CurrentDomain.BaseDirectory + "Settings/Appearence.ini", "http://localhost/charscript/Custom.php?hat=0" + Environment.NewLine);
+		_ = ApplyLiveAppearanceAsync();
+	}
+
+	private void AddLiveAppearanceButton()
+	{
+		Button button = new Button { Text = "Apply avatar live", Location = new Point(420, 154), Size = new Size(202, 42), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(40, 40, 40), ForeColor = Color.White };
+		button.Click += async (sender, args) => await ApplyLiveAppearanceAsync();
+		tabPage6.Controls.Add(button);
+	}
+
+	private async Task ApplyLiveAppearanceAsync()
+	{
+		try
 		{
-			FileName = AppDomain.CurrentDomain.BaseDirectory + "Settings/Appearence.ini"
-		}.FileName);
-		streamWriter.WriteLine("http://localhost/charscript/Custom.php?hat=0");
+			string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Settings", "Appearence.ini");
+			string[] assets = File.Exists(path) ? File.ReadAllText(path).Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries) : new string[0];
+			string lua;
+			using (Stream stream = typeof(Form1).Assembly.GetManifestResourceStream("_2017Launcher.ServerScripts.LiveAppearance.lua"))
+			{
+				if (stream == null) throw new InvalidOperationException("Live appearance script resource is missing.");
+				using (StreamReader reader = new StreamReader(stream)) lua = reader.ReadToEnd();
+			}
+			lua = lua.Replace("%TARGET%", LuaString(textBox2.Text.Trim()));
+			lua = lua.Replace("%ASSETS%", "{" + string.Join(",", assets.Select(asset => LuaString(NormalizeAssetUrl(asset.Trim())))) + "}");
+			string[] colors = { headcolor, torsocolor, leftarmcolor, rightarmcolor, leftlegcolor, rightlegcolor };
+			lua = lua.Replace("%COLORS%", "{" + string.Join(",", colors.Select(LuaString)) + "}");
+			await Task.Run(() => RccSoapClient.Execute("127.0.0.1", 64989, "Test", "LiveAppearance", lua));
+			label5.Text = "Applied live!";
+		}
+		catch (Exception ex)
+		{
+			MessageBox.Show("Could not apply appearance to the running server: " + ex.Message, "LuckyBlox Launcher", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+		}
+	}
+
+	private static string NormalizeAssetUrl(string asset)
+	{
+		if (string.IsNullOrWhiteSpace(asset)) return asset;
+		if (asset.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || asset.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) return asset;
+		long id;
+		return long.TryParse(asset, out id) ? "http://localhost/asset/?id=" + id.ToString(CultureInfo.InvariantCulture) : asset;
+	}
+
+	private static string LuaString(string value)
+	{
+		return "\"" + (value ?? string.Empty).Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "\\r").Replace("\n", "\\n") + "\"";
+	}
+
+	private string GetNewClientBodyColorsScript()
+	{
+		int year;
+		string yearText = new string((currentclient ?? string.Empty).TakeWhile(char.IsDigit).ToArray());
+		if (!int.TryParse(yearText, out year) || year <= 2018) return string.Empty;
+		string[] colors = { headcolor, torsocolor, leftarmcolor, rightarmcolor, leftlegcolor, rightlegcolor };
+		return "\nspawn(function() local p=game:GetService('Players'):WaitForChild(" + LuaString(textBox2.Text.Trim()) + "); local cs={" + string.Join(",", colors.Select(LuaString)) + "}; local function apply(c) for n=1,12 do if not c or not c.Parent then return end; local b=c:FindFirstChild('Body Colors') or Instance.new('BodyColors',c); b.HeadColor=BrickColor.new(cs[1]); b.TorsoColor=BrickColor.new(cs[2]); b.LeftArmColor=BrickColor.new(cs[3]); b.RightArmColor=BrickColor.new(cs[4]); b.LeftLegColor=BrickColor.new(cs[5]); b.RightLegColor=BrickColor.new(cs[6]); wait(.5) end end; p.CharacterAdded:connect(function(c) spawn(function() apply(c) end) end); if p.Character then apply(p.Character) end end)\n";
 	}
 
 	private void pictureBox12_Click(object sender, EventArgs e)
@@ -3484,6 +3561,7 @@ public class Form1 : Form
         leftarmcolor = textBox9.Text;
         rightlegcolor = textBox10.Text;
         leftlegcolor = textBox11.Text;
+		_ = ApplyLiveAppearanceAsync();
 
 		label10.Text = "Saved!";
         await Task.Delay(1000);

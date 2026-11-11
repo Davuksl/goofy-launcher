@@ -6,6 +6,7 @@
     <UseWindowsForms>True</UseWindowsForms>
     <TargetFramework>net461</TargetFramework>
     <PlatformTarget>x86</PlatformTarget>
+    <GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
   </PropertyGroup>
   <PropertyGroup>
     <LangVersion>11.0</LangVersion>
@@ -49,6 +50,12 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Update="Form1.resx">
+      <LogicalName>_2017Launcher.Form1.resources</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Update="Form2.resx">
+      <LogicalName>_2017Launcher.Form2.resources</LogicalName>
+    </EmbeddedResource>
     <EmbeddedResource Update="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
@@ -57,5 +64,9 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resource1.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+    <EmbeddedResource Include="ServerScripts\LiveAppearance.lua" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Resources.Extensions" Version="4.7.1" />
   </ItemGroup>
 </Project>
